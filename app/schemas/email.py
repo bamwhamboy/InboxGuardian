@@ -5,23 +5,35 @@ from pydantic import BaseModel, Field
 
 
 class EmailCategory(str, Enum):
+    # Disposable / low-value categories
     COURSE_PROMOTION = "course_promotion"
     MARKETING = "marketing"
     NEWSLETTER = "newsletter"
     JOB_ALERT = "job_alert"
+    SOCIAL = "social"
+    INSURANCE_MARKETING = "insurance_marketing"
+    EDUCATION = "education"
+    TELECOM = "telecom"
+    FOOD_DELIVERY = "food_delivery"
+
+    # Protected / high-value categories
     JOB_OFFER = "job_offer"
     EMPLOYMENT_DOCUMENT = "employment_document"
     SALARY = "salary"
     INVESTMENT = "investment"
     INSURANCE = "insurance"
-    INSURANCE_MARKETING = "insurance_marketing"
     TAX = "tax"
     LEGAL = "legal"
     PERSONAL = "personal"
     WORK = "work"
     TRANSACTION = "transaction"
     SECURITY = "security"
-    SOCIAL = "social"
+    BANKING = "banking"
+    PAYMENT = "payment"
+    TRAVEL = "travel"
+    ENTERTAINMENT = "entertainment"
+    E_COMMERCE = "e_commerce"
+
     OTHER = "other"
 
 
