@@ -1,0 +1,25 @@
+{
+  "job_search_active": false,
+  "job_alerts": "delete",
+  "known_insurance_providers": [],
+  "insurance_marketing_without_known_policy": "delete",
+  "unknown_or_ambiguous": "human_review",
+  "protected_categories": [
+    "job_offer",
+    "employment_document",
+    "salary",
+    "investment",
+    "insurance",
+    "tax",
+    "legal",
+    "personal",
+    "work",
+    "transaction",
+    "security",
+    "banking",
+    "payment",
+    "travel",
+    "entertainment",
+    "e_commerce"
+  ]
+}
