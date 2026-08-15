@@ -1,0 +1,16 @@
+{
+  "E067": {
+    "category": "insurance_marketing",
+    "expected_action": "delete",
+    "ground_truth": "junk",
+    "protected": false,
+    "reason": "User does not have a Bajaj Allianz policy; renewal-style mail is unwanted junk for this inbox."
+  },
+  "E068": {
+    "category": "insurance_marketing",
+    "expected_action": "delete",
+    "ground_truth": "junk",
+    "protected": false,
+    "reason": "User does not have a Max Life policy; premium/renewal-style mail is unwanted junk for this inbox."
+  }
+}
