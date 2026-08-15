@@ -14,6 +14,11 @@ PROTECTED_CATEGORIES = {
     EmailCategory.WORK,
     EmailCategory.TRANSACTION,
     EmailCategory.SECURITY,
+    EmailCategory.BANKING,
+    EmailCategory.PAYMENT,
+    EmailCategory.TRAVEL,
+    EmailCategory.ENTERTAINMENT,
+    EmailCategory.E_COMMERCE,
 }
 
 # User-specific disposable categories. These are safe deletion candidates only
@@ -25,6 +30,16 @@ DISPOSABLE_CATEGORIES = {
     EmailCategory.JOB_ALERT,
     EmailCategory.INSURANCE_MARKETING,
     EmailCategory.SOCIAL,
+    EmailCategory.TELECOM,
+    EmailCategory.FOOD_DELIVERY,
+}
+
+# Context-dependent categories must be reviewed unless a later user preference
+# or policy rule establishes that they are safe to delete/keep.
+REVIEW_CATEGORIES = {
+    EmailCategory.SERVICE_UPDATE,
+    EmailCategory.EDUCATION,
+    EmailCategory.OTHER,
 }
 
 AUTO_DELETE_CONFIDENCE = 0.95
@@ -52,6 +67,14 @@ def apply_policy(category: EmailCategory, confidence: float) -> tuple[Decision, 
             Decision.REVIEW,
             RiskLevel.MEDIUM,
             ["Disposable category but confidence is below auto-action threshold"],
+            True,
+        )
+
+    if category in REVIEW_CATEGORIES:
+        return (
+            Decision.REVIEW,
+            RiskLevel.MEDIUM,
+            [f"Context-dependent category: {category.value}"],
             True,
         )
 
