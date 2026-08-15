@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EmailCategory(str, Enum):
@@ -62,10 +62,25 @@ class Email(BaseModel):
 
 
 class Classification(BaseModel):
+    """LLM-produced classification of a single email.
+
+    Protection is decided exclusively by the deterministic guardrail layer;
+    the model has no protected field and cannot override that policy.
+    Unexpected LLM output fails closed via strict Pydantic validation.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
     category: EmailCategory
-    confidence: float = Field(ge=0.0, le=1.0)
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Model-reported confidence in [0, 1]. NOT a calibrated probability; "
+            "treat as a coarse ranking signal only."
+        ),
+    )
     rationale: str
-    protected: bool
 
 
 class EmailDecision(BaseModel):
