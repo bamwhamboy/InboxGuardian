@@ -16,6 +16,9 @@ class EmailCategory(str, Enum):
     TELECOM = "telecom"
     FOOD_DELIVERY = "food_delivery"
 
+    # Potentially important / context-dependent categories
+    SERVICE_UPDATE = "service_update"
+
     # Protected / high-value categories
     JOB_OFFER = "job_offer"
     EMPLOYMENT_DOCUMENT = "employment_document"
