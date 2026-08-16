@@ -19,6 +19,7 @@ PROTECTED_CATEGORIES = {
     EmailCategory.TRAVEL,
     EmailCategory.ENTERTAINMENT,
     EmailCategory.E_COMMERCE,
+    EmailCategory.CREDENTIAL_RECORD,
 }
 
 DISPOSABLE_CATEGORIES = {
