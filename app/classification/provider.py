@@ -135,6 +135,11 @@ class GeminiLLMClient:
                 system_instruction=system_prompt,
                 response_mime_type="application/json",
                 response_schema=response_schema,
+                # Structured JSON output uses response_schema rather than Gemini
+                # function-calling tools. Disable SDK automatic function calling
+                # explicitly to avoid the generate_content AFC warning and keep
+                # each classification request stateless across retries.
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             ),
         )
         text = getattr(response, "text", None)
