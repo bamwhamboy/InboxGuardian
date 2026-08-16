@@ -17,6 +17,7 @@ PROTECTED = [
     EmailCategory.WORK,
     EmailCategory.TRANSACTION,
     EmailCategory.SECURITY,
+    EmailCategory.CREDENTIAL_RECORD,
 ]
 
 DISPOSABLE = [
@@ -83,6 +84,26 @@ def test_e082_credential_record_correction():
     assert correction["expected_action"] == "keep"
     assert correction["ground_truth"] == "not_spam"
     assert correction["protected"] is True
+
+
+def test_e030_and_e037_use_investment_record_correction():
+    corrections_path = Path(__file__).parents[1] / "data" / "eval" / "ground_truth_corrections.json"
+    corrections = json.loads(corrections_path.read_text(encoding="utf-8"))
+    for email_id in ("E030", "E037"):
+        correction = corrections[email_id]
+        assert correction["category"] == "investment_record"
+        assert correction["expected_action"] == "keep"
+        assert correction["ground_truth"] == "not_spam"
+        assert correction["protected"] is True
+
+
+def test_no_evaluation_case_uses_the_obsolete_investment_category():
+    from app.evaluators.dataset import load_eval_cases
+
+    cases = load_eval_cases()
+    assert len(cases) == 100
+    literal_investment = [c.id for c in cases if c.expected_category == "investment"]
+    assert literal_investment == []
 
 
 def test_unknown_category_requires_human_review():
