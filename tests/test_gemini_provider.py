@@ -34,9 +34,11 @@ class FakeResponse:
 
 def install_fake_genai(monkeypatch, responses):
     responses = list(responses)
+    captured_configs = []
 
     class FakeModels:
         def generate_content(self, **kwargs):
+            captured_configs.append(kwargs.get("config"))
             return FakeResponse(responses.pop(0))
 
     class FakeClient:
@@ -51,8 +53,13 @@ def install_fake_genai(monkeypatch, responses):
         def __init__(self, **kwargs):
             self.kwargs = kwargs
 
+    class FakeAutomaticFunctionCallingConfig:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
     fake_types = types.ModuleType("google.genai.types")
     fake_types.GenerateContentConfig = FakeConfig
+    fake_types.AutomaticFunctionCallingConfig = FakeAutomaticFunctionCallingConfig
 
     fake_google = types.ModuleType("google")
     fake_google.genai = fake_genai
@@ -60,6 +67,8 @@ def install_fake_genai(monkeypatch, responses):
     monkeypatch.setitem(sys.modules, "google", fake_google)
     monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
     monkeypatch.setitem(sys.modules, "google.genai.types", fake_types)
+
+    return captured_configs
 
 
 def test_default_provider_is_gemini():
@@ -122,3 +131,18 @@ def test_gemini_client_works_through_classifier(monkeypatch):
     result = LLMEmailClassifier(llm_client=GeminiLLMClient()).classify(make_email())
     assert result.category.value == "marketing"
     assert result.confidence == pytest.approx(0.98)
+
+
+def test_gemini_explicitly_disables_automatic_function_calling(monkeypatch):
+    monkeypatch.setenv(GEMINI_API_KEY_ENV_VAR, "test-key")
+    captured_configs = install_fake_genai(
+        monkeypatch,
+        [json.dumps({"category": "marketing", "confidence": 0.9, "rationale": "x"})],
+    )
+
+    GeminiLLMClient().classify_raw("system", "user", ["marketing"])
+
+    assert len(captured_configs) == 1
+    config = captured_configs[0]
+    afc_config = config.kwargs["automatic_function_calling"]
+    assert afc_config.kwargs["disable"] is True
