@@ -1,4 +1,11 @@
 {
+  "E030": {
+    "category": "investment_record",
+    "expected_action": "keep",
+    "ground_truth": "not_spam",
+    "protected": true,
+    "reason": "ICICI Prudential 'Your SIP continues successfully' is a genuine SIP/investment transaction confirmation, not a promotional pitch, so the obsolete 'investment' label is corrected to 'investment_record'."
+  },
   "E035": {
     "category": "investment_marketing",
     "expected_action": "delete",
@@ -6,12 +13,12 @@
     "protected": false,
     "reason": "Axis Mutual Fund 'Top 5 Funds to Invest in 2024' is investment marketing intended to entice the recipient to invest, not an investment record."
   },
-  "E082": {
-    "category": "credential_record",
+  "E037": {
+    "category": "investment_record",
     "expected_action": "keep",
     "ground_truth": "not_spam",
     "protected": true,
-    "reason": "Coursera 'Your course certificate is here' is evidence of a completed course (a credential), not an employment document such as an offer letter or HR paperwork."
+    "reason": "CAMS 'Your Mutual Fund Statement' is a genuine account statement, not a promotional pitch, so the obsolete 'investment' label is corrected to 'investment_record'."
   },
   "E067": {
     "category": "insurance_marketing",
@@ -26,5 +33,12 @@
     "ground_truth": "junk",
     "protected": false,
     "reason": "User does not have a Max Life policy; premium/renewal-style mail is unwanted junk for this inbox."
+  },
+  "E082": {
+    "category": "credential_record",
+    "expected_action": "keep",
+    "ground_truth": "not_spam",
+    "protected": true,
+    "reason": "Coursera 'Your course certificate is here' is evidence of a completed course (a credential), not an employment document such as an offer letter or HR paperwork."
   }
 }
