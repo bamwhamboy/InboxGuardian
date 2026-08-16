@@ -17,3 +17,18 @@ class GroundTruthEchoLLMClient:
             "confidence": self.confidence,
             "rationale": "Deterministic evaluation stub.",
         }
+
+
+class MalformedLLMClient:
+    """Offline stub that always returns invalid structured output (an
+    unrecognized category), so classification fails validation on every
+    attempt. Used to test the evaluator's handling of real-world
+    classification failures (e.g. a blocked/malformed Gemini response)
+    without needing an API key or network access."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def classify_raw(self, system_prompt: str, user_prompt: str, category_values: list[str]) -> dict[str, Any]:
+        self.calls += 1
+        return {"category": "not_a_real_category", "confidence": 0.99, "rationale": "malformed"}
