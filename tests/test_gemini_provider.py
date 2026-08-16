@@ -71,12 +71,12 @@ def install_fake_genai(monkeypatch, responses):
     return captured_configs
 
 
-def test_default_provider_is_gemini():
-    assert DEFAULT_PROVIDER == "gemini"
+def test_default_provider_is_groq_when_no_provider_is_set():
+    assert DEFAULT_PROVIDER == "groq"
 
 
-def test_default_client_is_gemini(monkeypatch):
-    monkeypatch.delenv(PROVIDER_ENV_VAR, raising=False)
+def test_gemini_remains_selectable_as_explicit_alternative(monkeypatch):
+    monkeypatch.setenv(PROVIDER_ENV_VAR, "gemini")
     assert isinstance(default_llm_client(), GeminiLLMClient)
 
 

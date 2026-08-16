@@ -2,11 +2,12 @@
 
 `LLMClient` is a small protocol so the classifier logic (validation, retry,
 guardrail-preserving behavior) can be unit tested with a mocked client that
-never touches the network or requires an API key. Two concrete providers are
-implemented: `GeminiLLMClient` (the default) and `AnthropicLLMClient` (kept
-available, selectable via `INBOXGUARDIAN_LLM_PROVIDER`). Both read their
-credentials solely from an environment variable — no API keys are ever
-hard-coded, printed, logged, or committed.
+never touches the network or requires an API key. Three concrete providers
+are implemented: `GroqLLMClient` (the default), `GeminiLLMClient`, and
+`AnthropicLLMClient` (both kept available, selectable via
+`INBOXGUARDIAN_LLM_PROVIDER`). All read their credentials solely from an
+environment variable — no API keys are ever hard-coded, printed, logged, or
+committed.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PROVIDER_ENV_VAR = "INBOXGUARDIAN_LLM_PROVIDER"
-DEFAULT_PROVIDER = "gemini"
+DEFAULT_PROVIDER = "groq"
 MODEL_ENV_VAR = "INBOXGUARDIAN_LLM_MODEL"
 ANTHROPIC_API_KEY_ENV_VAR = "ANTHROPIC_API_KEY"
 API_KEY_ENV_VAR = ANTHROPIC_API_KEY_ENV_VAR
@@ -27,6 +28,16 @@ ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-5"
 DEFAULT_MODEL = ANTHROPIC_DEFAULT_MODEL
 GEMINI_API_KEY_ENV_VAR = "GEMINI_API_KEY"
 GEMINI_DEFAULT_MODEL = "gemini-3.5-flash"
+GROQ_API_KEY_ENV_VAR = "GROQ_API_KEY"
+GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b"
+# Groq-specific model override, intentionally separate from the shared
+# MODEL_ENV_VAR ("INBOXGUARDIAN_LLM_MODEL"). Reading the shared var directly
+# would let a stale value left over from a different provider (e.g.
+# INBOXGUARDIAN_LLM_MODEL=gemini-3.5-flash from when Gemini was the active
+# default) silently become Groq's model. Groq only ever honors an explicit
+# constructor argument or this dedicated env var; it never falls back to
+# the generic cross-provider one.
+GROQ_MODEL_ENV_VAR = "INBOXGUARDIAN_GROQ_MODEL"
 CLASSIFICATION_TOOL_NAME = "emit_classification"
 
 
@@ -157,12 +168,80 @@ class GeminiLLMClient:
         return data
 
 
+class GroqLLMClient:
+    def __init__(self, model: str | None = None) -> None:
+        # Deliberately does NOT fall back to the generic MODEL_ENV_VAR --
+        # see the GROQ_MODEL_ENV_VAR comment above. Priority: explicit
+        # constructor arg > INBOXGUARDIAN_GROQ_MODEL > GROQ_DEFAULT_MODEL.
+        self.model = model or os.environ.get(GROQ_MODEL_ENV_VAR) or GROQ_DEFAULT_MODEL
+        self._client: Any = None
+
+    def _get_client(self) -> Any:
+        if self._client is not None:
+            return self._client
+        api_key = os.environ.get(GROQ_API_KEY_ENV_VAR)
+        if not api_key:
+            raise LLMConfigurationError(f"Missing {GROQ_API_KEY_ENV_VAR} environment variable.")
+        try:
+            from groq import Groq
+        except ImportError as exc:
+            raise LLMConfigurationError(
+                "The 'groq' package is required to use GroqLLMClient."
+            ) from exc
+        self._client = Groq(api_key=api_key)
+        return self._client
+
+    def classify_raw(
+        self, system_prompt: str, user_prompt: str, category_values: list[str]
+    ) -> dict[str, Any]:
+        client = self._get_client()
+        response_schema = _classification_schema_object(category_values)
+        response = client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "classification",
+                    "schema": response_schema,
+                    "strict": True,
+                },
+            },
+            # High-volume classification task; prioritize latency over deep
+            # reasoning. Do NOT use reasoning_format with openai/gpt-oss-120b.
+            # include_reasoning=False keeps any reasoning tokens out of the
+            # response entirely, so only the structured classification JSON
+            # is ever returned to the classifier.
+            reasoning_effort="low",
+            include_reasoning=False,
+        )
+        choice = response.choices[0] if getattr(response, "choices", None) else None
+        text = choice.message.content if choice is not None and choice.message is not None else None
+        if not text:
+            raise LLMConfigurationError(
+                "Groq response did not include structured JSON output as expected."
+            )
+        import json
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise LLMConfigurationError(f"Groq response was not valid JSON: {exc}") from exc
+        if not isinstance(data, dict):
+            raise LLMConfigurationError("Groq response JSON was not an object.")
+        return data
+
+
 def default_llm_client() -> LLMClient:
     provider = os.environ.get(PROVIDER_ENV_VAR, DEFAULT_PROVIDER).strip().lower()
+    if provider == "groq":
+        return GroqLLMClient()
     if provider == "gemini":
         return GeminiLLMClient()
     if provider == "anthropic":
         return AnthropicLLMClient()
     raise LLMConfigurationError(
-        f"Unknown {PROVIDER_ENV_VAR}={provider!r}. Supported providers: 'gemini', 'anthropic'."
+        f"Unknown {PROVIDER_ENV_VAR}={provider!r}. Supported providers: 'groq', 'gemini', 'anthropic'."
     )
