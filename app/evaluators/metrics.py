@@ -40,7 +40,10 @@ def compute_metrics(results: list["EvalResult"], auto_delete_confidence: float) 
         "review_rate": _safe_div(reviews, total) if total else 0.0,
         "autonomous_delete_count": len(auto_deletes),
         "autonomous_delete_precision": auto_delete_precision,
-        "high_confidence_error_count": sum(r.confidence >= auto_delete_confidence and not r.correct_category for r in results),
+        "high_confidence_error_count": sum(
+            r.confidence is not None and r.confidence >= auto_delete_confidence and not r.correct_category
+            for r in results
+        ),
         "classification_error_count": sum(r.error for r in results),
         "auto_delete_confidence_threshold": auto_delete_confidence,
     }
@@ -62,4 +65,8 @@ def list_protected_sent_to_review(results):
 
 
 def list_high_confidence_errors(results, threshold: float):
-    return [r.to_dict() for r in results if r.confidence >= threshold and not r.correct_category]
+    return [
+        r.to_dict()
+        for r in results
+        if r.confidence is not None and r.confidence >= threshold and not r.correct_category
+    ]
