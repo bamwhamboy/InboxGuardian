@@ -20,12 +20,14 @@ CONTROLLED_CATEGORIES = [
     EmailCategory.WORK,
     EmailCategory.TRANSACTION,
     EmailCategory.SECURITY,
+    EmailCategory.CREDENTIAL_RECORD,
     EmailCategory.OTHER,
 ]
 
 CATEGORY_GUIDE = """
 Disposable / low-value:
-- course_promotion: courses, cohorts, bootcamps and learning offers.
+- course_promotion: courses, cohorts, bootcamps and learning offers -- invitations to enroll,
+  discounts and "50% off certification courses". Not evidence of a completed course.
 - marketing: general promotions, discounts and sales pitches.
 - newsletter: recurring editorial/content digests.
 - job_alert: automated job-board alerts, NOT a direct offer.
@@ -37,7 +39,8 @@ Disposable / low-value:
 
 Protected / high-value:
 - job_offer: actual job offer, interview invite or recruiting conversation directed at the user.
-- employment_document: offer letters, contracts and HR paperwork.
+- employment_document: offer letters, employment contracts and HR paperwork. Not general
+  educational/professional certificates -- those are credential_record.
 - salary: payroll, compensation and payslips.
 - investment_record: genuine owned investment records such as statements, SIP/transaction
   confirmations, dividend statements, or brokerage/retirement documents evidencing a holding.
@@ -50,6 +53,10 @@ Protected / high-value:
 - work: substantive work-related correspondence.
 - transaction: purchase/order confirmations, receipts and shipping notices.
 - security: account security alerts, password resets, login alerts and 2FA codes.
+- credential_record: certificates, certifications, course-completion records, and professional
+  or educational credentials -- evidence a course/qualification was already completed (e.g. "Your
+  course certificate is here"). Distinct from course_promotion (an invitation to enroll) and from
+  employment_document (offer letters/HR paperwork, not general certificates).
 
 Fallback:
 - other: anything that does not clearly fit. When uncertainty could result in deletion of
@@ -72,6 +79,10 @@ record/transaction/document or primarily promotional/marketing content.
 
 Insurance and investment are intent-sensitive. Actual owned records are protected; generic
 sales pitches and invitations to buy/invest are disposable candidates.
+
+Educational/professional credentials are also distinct from promotions: an email that IS the
+evidence of a completed course or certification is credential_record, not course_promotion (an
+invitation to enroll) and not employment_document (offer letters/HR paperwork).
 
 Allowed categories:
 {CATEGORY_GUIDE}
