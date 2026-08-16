@@ -39,6 +39,11 @@ class EmailCategory(str, Enum):
     TRAVEL = "travel"
     ENTERTAINMENT = "entertainment"
     E_COMMERCE = "e_commerce"
+    # Certificates, certifications, course-completion records and similar
+    # evidence of completed learning/qualification. Distinct from
+    # course_promotion (an invitation to enroll) and employment_document
+    # (offer letters/HR paperwork, not general certificates).
+    CREDENTIAL_RECORD = "credential_record"
 
     OTHER = "other"
 
