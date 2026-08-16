@@ -1,4 +1,11 @@
 {
+  "E035": {
+    "category": "investment_marketing",
+    "expected_action": "delete",
+    "ground_truth": "junk",
+    "protected": false,
+    "reason": "Axis Mutual Fund 'Top 5 Funds to Invest in 2024' is investment marketing intended to entice the recipient to invest, not an investment record."
+  },
   "E067": {
     "category": "insurance_marketing",
     "expected_action": "delete",
