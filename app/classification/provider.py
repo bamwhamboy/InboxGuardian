@@ -30,13 +30,6 @@ GEMINI_API_KEY_ENV_VAR = "GEMINI_API_KEY"
 GEMINI_DEFAULT_MODEL = "gemini-3.5-flash"
 GROQ_API_KEY_ENV_VAR = "GROQ_API_KEY"
 GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b"
-# Groq-specific model override, intentionally separate from the shared
-# MODEL_ENV_VAR ("INBOXGUARDIAN_LLM_MODEL"). Reading the shared var directly
-# would let a stale value left over from a different provider (e.g.
-# INBOXGUARDIAN_LLM_MODEL=gemini-3.5-flash from when Gemini was the active
-# default) silently become Groq's model. Groq only ever honors an explicit
-# constructor argument or this dedicated env var; it never falls back to
-# the generic cross-provider one.
 GROQ_MODEL_ENV_VAR = "INBOXGUARDIAN_GROQ_MODEL"
 CLASSIFICATION_TOOL_NAME = "emit_classification"
 
@@ -51,6 +44,28 @@ def _classification_schema_object(category_values: list[str]) -> dict[str, Any]:
         },
         "required": ["category", "confidence", "rationale"],
     }
+
+
+def _with_additional_properties_false(schema: dict[str, Any]) -> dict[str, Any]:
+    """Return a deep copy with additionalProperties=false on every object node."""
+    import copy
+
+    def _walk(node: Any) -> Any:
+        if isinstance(node, dict):
+            walked = {key: _walk(value) for key, value in node.items()}
+            if walked.get("type") == "object":
+                walked["additionalProperties"] = False
+            return walked
+        if isinstance(node, list):
+            return [_walk(item) for item in node]
+        return node
+
+    return _walk(copy.deepcopy(schema))
+
+
+def _classification_schema_object_for_groq(category_values: list[str]) -> dict[str, Any]:
+    """Build the shared classification schema with Groq's strict object rule."""
+    return _with_additional_properties_false(_classification_schema_object(category_values))
 
 
 def _classification_tool_schema(category_values: list[str]) -> dict[str, Any]:
@@ -146,10 +161,6 @@ class GeminiLLMClient:
                 system_instruction=system_prompt,
                 response_mime_type="application/json",
                 response_schema=response_schema,
-                # Structured JSON output uses response_schema rather than Gemini
-                # function-calling tools. Disable SDK automatic function calling
-                # explicitly to avoid the generate_content AFC warning and keep
-                # each classification request stateless across retries.
                 automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
             ),
         )
@@ -170,9 +181,6 @@ class GeminiLLMClient:
 
 class GroqLLMClient:
     def __init__(self, model: str | None = None) -> None:
-        # Deliberately does NOT fall back to the generic MODEL_ENV_VAR --
-        # see the GROQ_MODEL_ENV_VAR comment above. Priority: explicit
-        # constructor arg > INBOXGUARDIAN_GROQ_MODEL > GROQ_DEFAULT_MODEL.
         self.model = model or os.environ.get(GROQ_MODEL_ENV_VAR) or GROQ_DEFAULT_MODEL
         self._client: Any = None
 
@@ -195,7 +203,7 @@ class GroqLLMClient:
         self, system_prompt: str, user_prompt: str, category_values: list[str]
     ) -> dict[str, Any]:
         client = self._get_client()
-        response_schema = _classification_schema_object(category_values)
+        response_schema = _classification_schema_object_for_groq(category_values)
         response = client.chat.completions.create(
             model=self.model,
             messages=[
@@ -210,11 +218,6 @@ class GroqLLMClient:
                     "strict": True,
                 },
             },
-            # High-volume classification task; prioritize latency over deep
-            # reasoning. Do NOT use reasoning_format with openai/gpt-oss-120b.
-            # include_reasoning=False keeps any reasoning tokens out of the
-            # response entirely, so only the structured classification JSON
-            # is ever returned to the classifier.
             reasoning_effort="low",
             include_reasoning=False,
         )
