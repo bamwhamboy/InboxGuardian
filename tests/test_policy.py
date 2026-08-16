@@ -65,6 +65,26 @@ def test_investment_record_is_protected_but_marketing_is_disposable():
     assert marketing[1] == RiskLevel.LOW
 
 
+def test_credential_record_is_protected_and_distinct_from_course_and_employment():
+    decision, risk, reasons, human_review = apply_policy(EmailCategory.CREDENTIAL_RECORD, confidence=0.5)
+    assert decision == Decision.KEEP
+    assert risk == RiskLevel.CRITICAL
+    assert human_review is False
+    assert reasons
+    assert EmailCategory.CREDENTIAL_RECORD != EmailCategory.COURSE_PROMOTION
+    assert EmailCategory.CREDENTIAL_RECORD != EmailCategory.EMPLOYMENT_DOCUMENT
+
+
+def test_e082_credential_record_correction():
+    corrections_path = Path(__file__).parents[1] / "data" / "eval" / "ground_truth_corrections.json"
+    corrections = json.loads(corrections_path.read_text(encoding="utf-8"))
+    correction = corrections["E082"]
+    assert correction["category"] == "credential_record"
+    assert correction["expected_action"] == "keep"
+    assert correction["ground_truth"] == "not_spam"
+    assert correction["protected"] is True
+
+
 def test_unknown_category_requires_human_review():
     decision, risk, reasons, human_review = apply_policy(EmailCategory.OTHER, confidence=0.99)
     assert decision == Decision.REVIEW
