@@ -12,6 +12,7 @@ class EmailCategory(str, Enum):
     JOB_ALERT = "job_alert"
     SOCIAL = "social"
     INSURANCE_MARKETING = "insurance_marketing"
+    INVESTMENT_MARKETING = "investment_marketing"
     EDUCATION = "education"
     TELECOM = "telecom"
     FOOD_DELIVERY = "food_delivery"
@@ -23,7 +24,9 @@ class EmailCategory(str, Enum):
     JOB_OFFER = "job_offer"
     EMPLOYMENT_DOCUMENT = "employment_document"
     SALARY = "salary"
-    INVESTMENT = "investment"
+    INVESTMENT_RECORD = "investment_record"
+    # Legacy alias retained for compatibility.
+    INVESTMENT = "investment_record"
     INSURANCE = "insurance"
     TAX = "tax"
     LEGAL = "legal"
@@ -62,24 +65,10 @@ class Email(BaseModel):
 
 
 class Classification(BaseModel):
-    """LLM-produced classification of a single email.
-
-    Protection is decided exclusively by the deterministic guardrail layer;
-    the model has no protected field and cannot override that policy.
-    Unexpected LLM output fails closed via strict Pydantic validation.
-    """
-
     model_config = ConfigDict(extra="forbid")
 
     category: EmailCategory
-    confidence: float = Field(
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Model-reported confidence in [0, 1]. NOT a calibrated probability; "
-            "treat as a coarse ranking signal only."
-        ),
-    )
+    confidence: float = Field(ge=0.0, le=1.0)
     rationale: str
 
 
