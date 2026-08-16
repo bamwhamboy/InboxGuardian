@@ -1,4 +1,4 @@
-"""Prompt construction for the Sprint 1 email classifier."""
+"""Prompt construction for the email classifier."""
 
 from app.schemas.email import Email, EmailCategory
 
@@ -8,10 +8,11 @@ CONTROLLED_CATEGORIES = [
     EmailCategory.NEWSLETTER,
     EmailCategory.MARKETING,
     EmailCategory.INSURANCE_MARKETING,
+    EmailCategory.INVESTMENT_MARKETING,
     EmailCategory.JOB_OFFER,
     EmailCategory.EMPLOYMENT_DOCUMENT,
     EmailCategory.SALARY,
-    EmailCategory.INVESTMENT,
+    EmailCategory.INVESTMENT_RECORD,
     EmailCategory.INSURANCE,
     EmailCategory.TAX,
     EmailCategory.LEGAL,
@@ -31,12 +32,16 @@ Disposable / low-value:
 - insurance_marketing: insurance sales pitches, generic renewal reminders or cross-sells,
   including comparison sites. An insurer's renewal email without evidence that the user
   actually owns a policy is insurance_marketing.
+- investment_marketing: investment promotions, recommendations, offers and campaigns that
+  entice or invite the user to invest. Being about investing does NOT make an email protected.
 
 Protected / high-value:
 - job_offer: actual job offer, interview invite or recruiting conversation directed at the user.
 - employment_document: offer letters, contracts and HR paperwork.
 - salary: payroll, compensation and payslips.
-- investment: brokerage/investment statements and confirmations.
+- investment_record: genuine owned investment records such as statements, SIP/transaction
+  confirmations, dividend statements, or brokerage/retirement documents evidencing a holding.
+  A generic invitation or recommendation to invest is investment_marketing, not a record.
 - insurance: an actual owned-policy record such as a premium receipt, policy document or claim,
   with concrete evidence such as a policy number, premium amount or claim/reference number.
 - tax: tax filings, tax documents and tax-authority correspondence.
@@ -61,9 +66,12 @@ Use high confidence only when evidence is clear. When uncertain, express uncerta
 confidence and/or other. Do not guess a protected or disposable category at high confidence solely
 to avoid uncertainty.
 
-Insurance is especially important: if the email does not show evidence that the user actually
-owns a policy, classify a sales/renewal pitch as insurance_marketing at low confidence when needed.
-That low-confidence result is routed to human review by the policy layer.
+Topic is not the same as disposition. Do not classify an email as protected merely because its
+topic is investment, insurance, banking or employment. Determine whether it is a genuine
+record/transaction/document or primarily promotional/marketing content.
+
+Insurance and investment are intent-sensitive. Actual owned records are protected; generic
+sales pitches and invitations to buy/invest are disposable candidates.
 
 Allowed categories:
 {CATEGORY_GUIDE}
@@ -77,13 +85,7 @@ def build_user_prompt(email: Email) -> str:
     body = email.body.strip() or "(empty body)"
     if len(body) > 4000:
         body = body[:4000] + "... [truncated]"
-    return (
-        f"Email id: {email.id}\n"
-        f"Sender: {email.sender}\n"
-        f"Subject: {email.subject}\n"
-        f"Attachments: {attachments}\n"
-        f"Body:\n{body}"
-    )
+    return f"Email id: {email.id}\nSender: {email.sender}\nSubject: {email.subject}\nAttachments: {attachments}\nBody:\n{body}"
 
 
 def valid_categories() -> list[str]:
