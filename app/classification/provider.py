@@ -14,6 +14,10 @@ from __future__ import annotations
 import os
 from typing import Any, Protocol
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 PROVIDER_ENV_VAR = "INBOXGUARDIAN_LLM_PROVIDER"
 DEFAULT_PROVIDER = "gemini"
 MODEL_ENV_VAR = "INBOXGUARDIAN_LLM_MODEL"
