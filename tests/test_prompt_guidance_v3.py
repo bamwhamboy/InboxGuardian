@@ -87,15 +87,6 @@ def test_confidence_keeps_original_category_correctness_meaning():
     assert "disposition confidence" not in prompt
 
 
-def test_disposable_selection_requires_protected_record_check():
-    prompt = _normalized(SYSTEM_PROMPT)
-    assert "when selecting a disposable category, first verify that there is no evidence of an owned/" in prompt
-    assert "protected record" in prompt
-    assert "do not increase your confidence merely because an email looks promotional" in prompt
-    assert "absence of an ownership signal is not by itself evidence" in prompt
-    assert "too sparse or ambiguous" in prompt
-
-
 def test_owned_records_prefer_protected_category_over_other():
     prompt = _normalized(SYSTEM_PROMPT)
     assert "prefer the corresponding protected record category" in prompt
@@ -145,3 +136,147 @@ def test_classification_schema_is_unchanged():
 
 def test_auto_delete_threshold_is_unchanged():
     assert AUTO_DELETE_CONFIDENCE == 0.95
+
+
+# ---------------------------------------------------------------------------
+# V4: symmetric, evidence-strength-calibrated confidence (fixes V3's
+# over-conservative suppression of confidence on clearly disposable email).
+# Confidence semantics themselves are unchanged (still "confidence the
+# predicted category is correct" for every category) -- only the guidance
+# on how to calibrate that number changed.
+# ---------------------------------------------------------------------------
+
+
+def test_strong_disposable_evidence_should_get_high_confidence():
+    prompt = _normalized(SYSTEM_PROMPT)
+    assert "strong disposable evidence -> disposable category + high confidence" in prompt
+    assert "be willing to report high" in prompt
+    assert "do not hold it back out of general caution" in prompt
+
+
+def test_strong_disposable_evidence_examples_are_present_and_generic():
+    prompt = _normalized(SYSTEM_PROMPT)
+    for example in (
+        "an explicit invitation to enroll in a course",
+        "an obvious promotional offer or sales pitch",
+        "a recurring newsletter/editorial digest",
+        "an automated job-board alert",
+        "a social-platform activity notification",
+    ):
+        assert example in prompt
+
+
+def test_legitimate_sender_does_not_justify_lower_confidence():
+    prompt = _normalized(SYSTEM_PROMPT)
+    assert "do not lower confidence merely because the sender is a legitimate" in prompt
+    assert "a clear sales pitch from a real bank or broker is still a clear sales pitch" in prompt
+
+
+def test_strong_protected_evidence_should_get_high_confidence():
+    prompt = _normalized(SYSTEM_PROMPT)
+    assert "strong protected evidence -> protected category + high confidence" in prompt
+    for example in (
+        "a transaction/order/payment event",
+        "an account security event",
+        "an insurance policy/claim/maturity event",
+        "an investment statement/holding/transaction",
+        "a credential/course-completion record",
+        "an employment/hr document",
+        "a tax/legal record",
+    ):
+        assert example in prompt
+
+
+def test_ambiguous_evidence_still_routes_to_low_confidence_and_other():
+    prompt = _normalized(SYSTEM_PROMPT)
+    assert "ambiguous or insufficient evidence -> low confidence + other" in prompt
+    assert "an empty/generic bank notification with no meaningful content" in prompt
+    assert "these should get low confidence and route to review" in prompt
+
+
+def test_absence_of_protected_evidence_is_still_not_positive_disposable_evidence():
+    prompt = _normalized(SYSTEM_PROMPT)
+    assert "do not treat the mere absence of protected evidence as positive evidence" in prompt
+    assert "disposable confidence must come from evidence of disposable intent" in prompt
+
+
+def test_goal_is_calibration_not_a_global_confidence_increase():
+    prompt = _normalized(SYSTEM_PROMPT)
+    assert "the goal is not to raise confidence across the board" in prompt
+    assert "track the actual strength of the evidence" in prompt
+
+
+def test_v4_confidence_guidance_has_no_literal_dataset_phrases_or_email_ids():
+    prompt = SYSTEM_PROMPT
+    assert not re.search(r"\bE\d{3}\b", prompt)
+    for banned in (
+        "Top 5 Funds to Invest in 2024",
+        "Open Demat Account",
+        "Hot stocks for today",
+        "Term Insurance starting at",
+        "What if your offer letter arrives",
+    ):
+        assert banned.lower() not in prompt.lower()
+
+
+def test_v3_phase2_category_boundaries_are_unchanged_by_v4():
+    guide = _normalized(CATEGORY_GUIDE)
+    assert "promotes a specific named investment product, fund, or curated set of" in guide
+    assert "promotes a specific named insurance product or plan type with concrete" in guide
+    assert "an event about the user's own activity on a social platform" in guide
+    assert "any summary, balance, or statement of an owned account metric" in guide
+    assert "an actual job offer, interview invite or recruiting conversation from the actual" in guide
+    assert "an institutional sender alone" in guide
+    assert "must not imply a protected category" in guide
+
+
+def test_auto_delete_confidence_threshold_still_unchanged_v4():
+    assert AUTO_DELETE_CONFIDENCE == 0.95
+
+
+# ---------------------------------------------------------------------------
+# V4 clarification: empty/sparse body does not by itself require low
+# confidence -- confidence should track strength/specificity of available
+# evidence (sender, subject, metadata), not body length.
+# ---------------------------------------------------------------------------
+
+
+def test_empty_body_does_not_by_itself_require_low_confidence():
+    prompt = _normalized(SYSTEM_PROMPT)
+    assert "an empty or sparse body does not by itself require low confidence" in prompt
+    assert "the classifier may assign high confidence" in prompt
+    assert "even when the body is empty" in prompt
+
+
+def test_confidence_reflects_evidence_strength_not_body_length():
+    prompt = _normalized(SYSTEM_PROMPT)
+    assert "confidence should reflect the strength and specificity of the" in prompt
+    assert "not the amount of body text" in prompt
+
+
+def test_empty_body_examples_are_generic_and_cover_both_dispositions():
+    prompt = _normalized(SYSTEM_PROMPT)
+    assert "a clear promotional sale subject from a retailer can be high-confidence marketing" in prompt
+    assert "a clear course enrollment invitation can be high-confidence course_promotion" in prompt
+    assert "a clear security-code/password-reset subject can be high-confidence security" in prompt
+    assert "a vague bank notification with an empty body" in prompt
+    assert "remains ambiguous and should" in prompt
+    assert "remain low-confidence and route to review" in prompt
+
+
+def test_empty_body_clarification_does_not_manufacture_evidence():
+    prompt = _normalized(SYSTEM_PROMPT)
+    assert "it does not manufacture evidence that isn't there" in prompt
+
+
+def test_empty_body_clarification_has_no_literal_dataset_phrases_or_ids():
+    prompt = SYSTEM_PROMPT
+    assert not re.search(r"\bE\d{3}\b", prompt)
+    for banned in (
+        "Top 5 Funds to Invest in 2024",
+        "Open Demat Account",
+        "Hot stocks for today",
+        "Term Insurance starting at",
+        "What if your offer letter arrives",
+    ):
+        assert banned.lower() not in prompt.lower()
