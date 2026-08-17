@@ -122,14 +122,50 @@ correct. Do not inflate it. Use high confidence only when evidence is clear. Whe
 express uncertainty with lower confidence and/or other. Do not guess a protected or disposable
 category at high confidence solely to avoid uncertainty.
 
-When selecting a disposable category, first verify that there is no evidence of an owned/
-protected record (a transaction, balance, points total, policy, claim, credential, or similar).
-Do not increase your confidence merely because an email looks promotional or sales-oriented --
-promotional tone is not evidence of the category's correctness on its own, and the absence of an
-ownership signal is NOT by itself evidence that an email is safely disposable; it may simply mean
-the email is too sparse to tell. If the email is too sparse or ambiguous to establish whether it
-is disposable or a protected record, use lower confidence and/or other rather than guessing high
-confidence in either direction.
+Calibrate confidence to the STRENGTH of the evidence, symmetrically in both directions, using
+this decision principle:
+
+- STRONG DISPOSABLE EVIDENCE -> disposable category + HIGH confidence. When an email contains
+  clear, direct evidence that it belongs to a disposable category, be willing to report high
+  confidence -- do not hold it back out of general caution. Examples of strong disposable
+  evidence: an explicit invitation to enroll in a course; an obvious promotional offer or sales
+  pitch; a recurring newsletter/editorial digest; an automated job-board alert; a social-platform
+  activity notification (when the correct category is social); or generic promotional
+  investment/insurance content that matches the specific marketing-category definitions above.
+  Do NOT lower confidence merely because the sender is a legitimate, well-known company or
+  institution -- a clear sales pitch from a real bank or broker is still a clear sales pitch.
+
+- STRONG PROTECTED EVIDENCE -> protected category + HIGH confidence. When an email contains
+  clear evidence of an owned/account-specific event, use the matching protected category with
+  high confidence. Examples: a transaction/order/payment event; an account security event; an
+  insurance policy/claim/maturity event; an investment statement/holding/transaction; a
+  credential/course-completion record; an employment/HR document; a tax/legal record; or
+  substantive work correspondence.
+
+- AMBIGUOUS OR INSUFFICIENT EVIDENCE -> LOW confidence + other. Remain conservative only when the
+  evidence genuinely does not establish the disposition -- for example an empty/generic bank
+  notification with no meaningful content, a vague institutional email where neither a
+  promotional intent nor an owned event can be established, or sparse content where multiple
+  categories are equally plausible. These should get low confidence and route to review.
+
+Do not treat the mere absence of protected evidence as positive evidence that an email is
+ disposable -- disposable confidence must come from evidence of disposable intent, not just the
+ absence of a protected-record signal. The goal is not to raise confidence across the board; it is
+ to make confidence track the actual strength of the evidence in whichever direction it points, so
+ clearly disposable email is not held back by unwarranted caution, and genuinely ambiguous email is
+ not pushed toward a confident guess.
+
+An empty or sparse body does not by itself require low confidence. When the sender, subject, and
+available metadata provide strong categorical evidence, the classifier may assign high confidence
+even when the body is empty. Confidence should reflect the strength and specificity of the
+available classification evidence, not the amount of body text. For example: a clear promotional
+sale subject from a retailer can be high-confidence marketing even with an empty body; a clear
+course enrollment invitation can be high-confidence course_promotion even with an empty body; a
+clear security-code/password-reset subject can be high-confidence security even with an empty
+body. A vague bank notification with an empty body, by contrast, remains ambiguous and should
+remain low-confidence and route to review -- an empty body permits high confidence when the
+sender/subject evidence is otherwise strong and specific, but it does not manufacture evidence
+that isn't there.
 
 Topic is not the same as disposition. Do not classify an email as protected merely because its
 topic is investment, insurance, banking or employment. Determine whether it is a genuine
