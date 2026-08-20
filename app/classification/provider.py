@@ -2,12 +2,13 @@
 
 `LLMClient` is a small protocol so the classifier logic (validation, retry,
 guardrail-preserving behavior) can be unit tested with a mocked client that
-never touches the network or requires an API key. Three concrete providers
-are implemented: `GroqLLMClient` (the default), `GeminiLLMClient`, and
-`AnthropicLLMClient` (both kept available, selectable via
-`INBOXGUARDIAN_LLM_PROVIDER`). All read their credentials solely from an
-environment variable — no API keys are ever hard-coded, printed, logged, or
-committed.
+never touches the network or requires an API key. Four concrete providers
+are implemented: `GroqLLMClient` (the default), `GeminiLLMClient`,
+`AnthropicLLMClient`, and `OllamaLLMClient` (all kept available, selectable
+via `INBOXGUARDIAN_LLM_PROVIDER`). All but Ollama read their credentials
+solely from an environment variable — no API keys are ever hard-coded,
+printed, logged, or committed. Ollama requires no API key at all: it talks
+to a local Ollama service instead.
 """
 
 from __future__ import annotations
@@ -31,6 +32,16 @@ GEMINI_DEFAULT_MODEL = "gemini-3.5-flash"
 GROQ_API_KEY_ENV_VAR = "GROQ_API_KEY"
 GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b"
 GROQ_MODEL_ENV_VAR = "INBOXGUARDIAN_GROQ_MODEL"
+# Ollama needs no API key -- it talks to a local service. Model selection
+# follows the same provider-specific pattern as Groq (never falls back to
+# the generic, cross-provider MODEL_ENV_VAR, so a stale value left over
+# from a different provider can't silently become Ollama's model). The host
+# var name matches Ollama's own upstream convention (OLLAMA_HOST) rather
+# than inventing a new one, consistent with how provider API key vars
+# already reuse each provider's own upstream naming.
+OLLAMA_DEFAULT_MODEL = "qwen3:8b"
+OLLAMA_MODEL_ENV_VAR = "INBOXGUARDIAN_OLLAMA_MODEL"
+OLLAMA_HOST_ENV_VAR = "OLLAMA_HOST"
 CLASSIFICATION_TOOL_NAME = "emit_classification"
 
 
@@ -237,6 +248,79 @@ class GroqLLMClient:
         return data
 
 
+class OllamaLLMClient:
+    """Local provider: talks to a locally-running Ollama service. Requires
+    no API key -- only that the Ollama service is running and the model has
+    been pulled (e.g. `ollama pull qwen3:8b`)."""
+
+    def __init__(self, model: str | None = None, host: str | None = None) -> None:
+        self.model = model or os.environ.get(OLLAMA_MODEL_ENV_VAR) or OLLAMA_DEFAULT_MODEL
+        # None is intentional here (not empty string): passing host=None to
+        # ollama.Client() lets the client fall back to its own default
+        # (http://localhost:11434), rather than us hard-coding that URL.
+        self.host = host or os.environ.get(OLLAMA_HOST_ENV_VAR)
+        self._client: Any = None
+
+    def _get_client(self) -> Any:
+        if self._client is not None:
+            return self._client
+        try:
+            import ollama
+        except ImportError as exc:
+            raise LLMConfigurationError(
+                "The 'ollama' package is required to use OllamaLLMClient. "
+                "Install it with `pip install ollama`."
+            ) from exc
+        self._client = ollama.Client(host=self.host) if self.host else ollama.Client()
+        return self._client
+
+    def classify_raw(
+        self, system_prompt: str, user_prompt: str, category_values: list[str]
+    ) -> dict[str, Any]:
+        client = self._get_client()
+        response_schema = _classification_schema_object(category_values)
+
+        try:
+            response = client.chat(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                # Ollama's structured-output support: pass the JSON schema
+                # directly via `format`, reusing the same shared schema/
+                # taxonomy every other provider uses -- never redefined here.
+                format=response_schema,
+                # qwen3:8b supports an extended-thinking mode; disable it so
+                # reasoning tokens never end up mixed into the classification
+                # response, mirroring the Groq provider's include_reasoning=False.
+                think=False,
+                options={"temperature": 0},
+            )
+        except Exception as exc:
+            # Covers a missing/unreachable local Ollama service, a model
+            # that hasn't been pulled, or any other request failure.
+            raise LLMConfigurationError(
+                f"Ollama request failed (is the local Ollama service running at "
+                f"{self.host or 'the default host'}? is {self.model!r} pulled?): {exc}"
+            ) from exc
+
+        message = getattr(response, "message", None)
+        text = getattr(message, "content", None) if message is not None else None
+        if not text:
+            raise LLMConfigurationError(
+                "Ollama response did not include structured JSON output as expected."
+            )
+        import json
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise LLMConfigurationError(f"Ollama response was not valid JSON: {exc}") from exc
+        if not isinstance(data, dict):
+            raise LLMConfigurationError("Ollama response JSON was not an object.")
+        return data
+
+
 def default_llm_client() -> LLMClient:
     provider = os.environ.get(PROVIDER_ENV_VAR, DEFAULT_PROVIDER).strip().lower()
     if provider == "groq":
@@ -245,6 +329,9 @@ def default_llm_client() -> LLMClient:
         return GeminiLLMClient()
     if provider == "anthropic":
         return AnthropicLLMClient()
+    if provider == "ollama":
+        return OllamaLLMClient()
     raise LLMConfigurationError(
-        f"Unknown {PROVIDER_ENV_VAR}={provider!r}. Supported providers: 'groq', 'gemini', 'anthropic'."
+        f"Unknown {PROVIDER_ENV_VAR}={provider!r}. Supported providers: "
+        "'groq', 'gemini', 'anthropic', 'ollama'."
     )
